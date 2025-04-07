@@ -95,35 +95,51 @@ router.post('/signin', async (req, res) => { // Use async/await
 // GET /movies - Retrieve all movies
 router.get('/movies', authJwtController.isAuthenticated, async (req, res) => {
     try {
-      // Check if query parameter reviews is set to "true"
       if (req.query.reviews === 'true') {
-        // Use aggregation with $lookup to join reviews
         Movie.aggregate([
           {
             $lookup: {
-              from: "reviews",        // name of the foreign collection (ensure it's correct, typically lowercase plural)
-              localField: "_id",      // field in the movies collection
-              foreignField: "movieId",// field in the reviews collection
-              as: "reviews"           // the name of the output array field
+              from: "reviews",         // Name of the Reviews collection
+              localField: "_id",       // Field in Movies collection
+              foreignField: "movieId", // Field in Reviews collection
+              as: "reviews"            // Output array field for the joined reviews
+            }
+          },
+          {
+            $addFields: {
+              avgRating: {
+                $cond: {
+                  if: { $gt: [{ $size: "$reviews" }, 0] },
+                  then: { $avg: "$reviews.rating" },
+                  else: null
+                }
+              }
+            }
+          },
+          {
+            $sort: {
+              avgRating: -1,
+              title: 1
             }
           }
-        ]).exec((err, moviesWithReviews) => {
+        ]).exec((err, movies) => {
           if (err) {
             console.error("Aggregation error:", err);
-            return res.status(500).json({ success: false, message: "Error aggregating reviews." });
+            return res.status(500).json({ success: false, message: "Error aggregating reviews" });
           }
-          return res.status(200).json({ success: true, movies: moviesWithReviews });
+          return res.status(200).json({ success: true, movies });
         });
       } else {
-        // If reviews query param is not true, simply return movies
+        // Otherwise, simply return all movies without aggregation.
         const movies = await Movie.find();
-        return res.status(200).json({ success: true, movies });
+        res.status(200).json({ success: true, movies });
       }
     } catch (err) {
       console.error("Server error:", err);
-      res.status(500).json({ success: false, message: "Server error retrieving movies." });
+      res.status(500).json({ success: false, message: "Server error retrieving movies" });
     }
-  });  
+  });
+  
   
   // POST /movies - Create a new movie
   router.post('/movies', authJwtController.isAuthenticated, async (req, res) => {
