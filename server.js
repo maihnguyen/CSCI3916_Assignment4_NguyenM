@@ -96,9 +96,9 @@ router.post('/signin', async (req, res) => { // Use async/await
 
 // GET /movies - Retrieve all movies
 router.get('/movies', authJwtController.isAuthenticated, async (req, res) => {
-    try {
-      if (req.query.reviews === 'true') {
-        Movie.aggregate([
+    //first check for req.query.reviews === "true", e.g. /movies?reviews=true
+    if (req.query.reviews === 'true') {
+        const movies = await Movie.aggregate([
           {
             $lookup: {
               from: "reviews",         // Name of the Reviews collection
@@ -124,22 +124,17 @@ router.get('/movies', authJwtController.isAuthenticated, async (req, res) => {
               title: 1
             }
           }
-        ]).exec((err, movies) => {
-          if (err) {
-            console.error("Aggregation error:", err);
-            return res.status(500).json({ success: false, message: "Error aggregating reviews" });
-          }
-          return res.status(200).json({ success: true, movies });
-        });
+        ])
+        return res.json(movies);
       } else {
         // Otherwise, simply return all movies without aggregation.
-        const movies = await Movie.find();
-        res.status(200).json({ success: true, movies });
-      }
-    } catch (err) {
-      console.error("Server error:", err);
-      res.status(500).json({ success: false, message: "Server error retrieving movies" });
-    }
+        try {
+          const movies = await Movie.find();
+          res.status(200).json({ success: true, movies });
+        } catch (err) {
+          res.status(500).json({ success: false, message: 'Server error retrieving movies' });
+        }
+      } 
   });
   
   
@@ -170,16 +165,51 @@ router.get('/movies', authJwtController.isAuthenticated, async (req, res) => {
   });
   
   // GET /movies/:movieId - Retrieve a specific movie
-  router.get('/movies/:movieId', authJwtController.isAuthenticated, async (req, res) => {
-    try {
-      const movie = await Movie.findById(req.params.movieId);
-      if (!movie) {
-        return res.status(404).json({ success: false, message: 'Movie not found' });
+  router.get('/movies', authJwtController.isAuthenticated, async (req, res) => {
+    //first check for req.query.reviews === "true", e.g. /movies?reviews=true
+    const id = req.params.movieId;
+
+    if (req.query.reviews === 'true') {
+      const movies = await Movie.aggregate([
+        {
+            $match: { _id: new mongoose.Types.ObjectId(id) } // Match the specific movie by ID
+        },
+        {
+          $lookup: {
+            from: "reviews",         // Name of the Reviews collection
+            localField: "_id",       // Field in Movies collection
+            foreignField: "movieId", // Field in Reviews collection
+            as: "reviews"            // Output array field for the joined reviews
+          }
+        },
+        {
+          $addFields: {
+            avgRating: {
+              $cond: {
+                if: { $gt: [{ $size: "$reviews" }, 0] },
+                then: { $avg: "$reviews.rating" },
+                else: null
+              }
+            }
+          }
+        },
+        {
+          $sort: {
+            avgRating: -1,
+            title: 1
+          }
+        }
+      ])
+      return res.json(movies);
+    } else {
+      // Otherwise, simply return all movies without aggregation.
+      try {
+        const movies = await Movie.find();
+        res.status(200).json({ success: true, movies });
+      } catch (err) {
+        res.status(500).json({ success: false, message: 'Server error retrieving movies' });
       }
-      res.status(200).json({ success: true, movie });
-    } catch (err) {
-      res.status(500).json({ success: false, message: 'Server error retrieving movie' });
-    }
+    } 
   });
   
   // PUT /movies/:movieId - Update an existing movie
