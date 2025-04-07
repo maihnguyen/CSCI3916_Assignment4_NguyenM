@@ -293,15 +293,21 @@ router.get('/reviews', async (req, res) => {
       if (!movieId || !username || !review || rating === undefined) {
         return res.status(400).json({ success: false, message: 'Missing required fields.' });
       }
-      // Create and save the new review
-      const newReview = new Review({ movieId, username, review, rating });
-      await newReview.save();
-      res.status(201).json({ message: 'Review created!' });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ success: false, message: 'Error creating review.' });
+      // Check if the movie exists before saving the review
+    const movieExists = await Movie.findById(movieId);
+    if (!movieExists) {
+      return res.status(404).json({ success: false, message: 'Movie not found' });
     }
-  });
+
+    // Create and save the new review
+    const newReview = new Review({ movieId, username, review, rating });
+    await newReview.save();
+    return res.status(201).json({ message: 'Review created!' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Error creating review' });
+  }
+});
   
   // (Optional) DELETE /reviews/:reviewId - Delete a review (secured with JWT)
   router.delete('/reviews/:reviewId', authJwtController.isAuthenticated, async (req, res) => {
