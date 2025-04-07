@@ -93,55 +93,37 @@ router.post('/signin', async (req, res) => { // Use async/await
 // ===== Movies Endpoints =====
 
 // GET /movies - Retrieve all movies
-const mongoose = require('mongoose');
-
-router.get('/movies/:id', authJwtController.isAuthenticated, async (req, res) => {
-  try {
-    const movieId = req.params.id;
-
-    // Check if the provided movieId is a valid ObjectId
-    if (!mongoose.Types.ObjectId.isValid(movieId)) {
-      return res.status(404).json({ success: false, message: 'Movie not found' });
-    }
-
-    // If reviews=true, perform aggregation with $lookup
-    if (req.query.reviews === 'true') {
-      Movie.aggregate([
-        {
-            $match: { _id: new mongoose.Types.ObjectId(movieId) }  // Using 'new' to instantiate ObjectId
-        },
-        {
-          $lookup: {
-            from: "reviews",              // ensure this matches your Reviews collection name (usually lowercase plural)
-            localField: "_id",            // movie _id field
-            foreignField: "movieId",      // field in the Reviews collection
-            as: "reviews"                 // output field for the joined reviews
+router.get('/movies', authJwtController.isAuthenticated, async (req, res) => {
+    try {
+      // Check if query parameter reviews is set to "true"
+      if (req.query.reviews === 'true') {
+        // Use aggregation with $lookup to join reviews
+        Movie.aggregate([
+          {
+            $lookup: {
+              from: "reviews",        // name of the foreign collection (ensure it's correct, typically lowercase plural)
+              localField: "_id",      // field in the movies collection
+              foreignField: "movieId",// field in the reviews collection
+              as: "reviews"           // the name of the output array field
+            }
           }
-        }
-      ]).exec((err, result) => {
-        if (err) {
-          console.error("Aggregation error:", err);
-          return res.status(500).json({ success: false, message: "Error aggregating reviews" });
-        }
-        if (result.length === 0) {
-          return res.status(404).json({ success: false, message: "Movie not found" });
-        }
-        return res.status(200).json({ success: true, movie: result[0] });
-      });
-    } else {
-      // Otherwise, simply retrieve the movie without aggregation
-      const movie = await Movie.findById(movieId);
-      if (!movie) {
-        return res.status(404).json({ success: false, message: 'Movie not found' });
+        ]).exec((err, moviesWithReviews) => {
+          if (err) {
+            console.error("Aggregation error:", err);
+            return res.status(500).json({ success: false, message: "Error aggregating reviews." });
+          }
+          return res.status(200).json({ success: true, movies: moviesWithReviews });
+        });
+      } else {
+        // If reviews query param is not true, simply return movies
+        const movies = await Movie.find();
+        return res.status(200).json({ success: true, movies });
       }
-      return res.status(200).json({ success: true, movie });
+    } catch (err) {
+      console.error("Server error:", err);
+      res.status(500).json({ success: false, message: "Server error retrieving movies." });
     }
-  } catch (err) {
-    console.error("Server error:", err);
-    res.status(500).json({ success: false, message: "Server error retrieving movie" });
-  }
-});
-
+  });  
   
   // POST /movies - Create a new movie
   router.post('/movies', authJwtController.isAuthenticated, async (req, res) => {
