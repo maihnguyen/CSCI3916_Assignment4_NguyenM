@@ -107,7 +107,9 @@ router.get('/movies/:id', authJwtController.isAuthenticated, async (req, res) =>
     // If reviews=true, perform aggregation with $lookup
     if (req.query.reviews === 'true') {
       Movie.aggregate([
-        { $match: { _id: mongoose.Types.ObjectId(movieId) } },
+        {
+            $match: { _id: new mongoose.Types.ObjectId(movieId) }  // Using 'new' to instantiate ObjectId
+        },
         {
           $lookup: {
             from: "reviews",              // ensure this matches your Reviews collection name (usually lowercase plural)
