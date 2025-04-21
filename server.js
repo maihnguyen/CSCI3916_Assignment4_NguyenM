@@ -312,26 +312,26 @@ router.get('/movies/:movieId', authJwtController.isAuthenticated, async (req, re
   // POST /reviews - Create a new review (secured with JWT)
   router.post('/reviews', authJwtController.isAuthenticated, async (req, res) => {
     try {
-      const { movieId, username, review, rating } = req.body;
-      // Validate that all required fields are provided
-      if (!movieId || !username || !review || rating === undefined) {
+      const { movieId, review, rating } = req.body;
+      const username = req.user.username;             // ← grab from JWT payload
+  
+      if (!movieId || !review || rating === undefined) {
         return res.status(400).json({ success: false, message: 'Missing required fields.' });
       }
-      // Check if the movie exists before saving the review
-    const movieExists = await Movie.findById(movieId);
-    if (!movieExists) {
-      return res.status(404).json({ success: false, message: 'Movie not found' });
+      // verify movie exists…
+      const movieExists = await Movie.findById(movieId);
+      if (!movieExists) {
+        return res.status(404).json({ success: false, message: 'Movie not found' });
+      }
+  
+      const newReview = new Review({ movieId, username, review, rating });
+      await newReview.save();
+      return res.status(201).json({ message: 'Review created!' });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Error creating review' });
     }
-
-    // Create and save the new review
-    const newReview = new Review({ movieId, username, review, rating });
-    await newReview.save();
-    return res.status(201).json({ message: 'Review created!' });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ success: false, message: 'Error creating review' });
-  }
-});
+  });
   
   // (Optional) DELETE /reviews/:reviewId - Delete a review (secured with JWT)
   router.delete('/reviews/:reviewId', authJwtController.isAuthenticated, async (req, res) => {
