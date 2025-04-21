@@ -141,23 +141,43 @@ router.get('/movies', authJwtController.isAuthenticated, async (req, res) => {
   // POST /movies - Create a new movie
   router.post('/movies', authJwtController.isAuthenticated, async (req, res) => {
     try {
-      const { title, releaseDate, genre, actors } = req.body;
+      const { title, releaseDate, genre, actors, imageUrl } = req.body;
   
-      // Validate required fields
-      if (!title || !releaseDate || !genre || !actors || !Array.isArray(actors) || actors.length === 0) {
-        return res.status(400).json({ success: false, message: 'Missing required fields or actors array is empty' });
+      // Validate required fields, including imageUrl
+      if (
+        !title ||
+        !releaseDate ||
+        !genre ||
+        !actors ||
+        !Array.isArray(actors) ||
+        actors.length === 0 ||
+        !imageUrl
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing required fields, actors array is empty, or imageUrl is missing'
+        });
       }
   
-      // Validate each actor
+      // Validate actors entries
       for (const actor of actors) {
         if (!actor.actorName || !actor.characterName) {
-          return res.status(400).json({ success: false, message: 'Each actor must have both actorName and characterName' });
+          return res.status(400).json({
+            success: false,
+            message: 'Each actor must have both actorName and characterName'
+          });
         }
       }
   
-      const newMovie = new Movie({ title, releaseDate, genre, actors });
+      // Create the movie with imageUrl
+      const newMovie = new Movie({ title, releaseDate, genre, actors, imageUrl });
       await newMovie.save();
-      res.status(201).json({ success: true, message: 'Movie created successfully', movie: newMovie });
+  
+      res.status(201).json({
+        success: true,
+        message: 'Movie created successfully',
+        movie: newMovie
+      });
     } catch (err) {
       console.error(err);
       res.status(500).json({ success: false, message: 'Server error creating movie' });
