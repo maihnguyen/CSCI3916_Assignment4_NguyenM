@@ -313,7 +313,7 @@ router.get('/movies/:movieId', authJwtController.isAuthenticated, async (req, re
   router.post('/reviews', authJwtController.isAuthenticated, async (req, res) => {
     try {
       const { movieId, review, rating } = req.body;
-      const username = req.user.username;             // ← grab from JWT payload
+      const username = req.user.name;             // ← grab from JWT payload
   
       if (!movieId || !review || rating === undefined) {
         return res.status(400).json({ success: false, message: 'Missing required fields.' });
