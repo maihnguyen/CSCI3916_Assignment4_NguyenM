@@ -274,16 +274,20 @@ router.get('/movies/:movieId', authJwtController.isAuthenticated, async (req, re
 
 // ===== Reviews Endpoints =====
 
-// GET /reviews - Retrieve all reviews (public endpoint)
-router.get('/reviews', async (req, res) => {
-    try {
-      const reviews = await Review.find();
-      res.status(200).json({ success: true, reviews });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ success: false, message: 'Error retrieving reviews.' });
+// GET /reviews - Retrieve all reviews (now JWT‑protected)
+  router.get(
+    '/reviews',
+    authJwtController.isAuthenticated,    // ← add this
+    async (req, res) => {
+      try {
+        const reviews = await Review.find();
+        res.status(200).json({ success: true, reviews });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Error retrieving reviews.' });
+      }
     }
-  });
+  );
   
   // POST /reviews - Create a new review (secured with JWT)
   router.post('/reviews', authJwtController.isAuthenticated, async (req, res) => {
